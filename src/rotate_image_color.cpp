@@ -1,40 +1,15 @@
 #include "tool.h"
 
-#include <math.h>
-#include <stdlib.h>
 
-#include <inttypes.h>
-
-#include <vector>
-#include <string>
-
-typedef struct {
-    int width;
-    int height;
-} HuSize;
-
-
-typedef struct
-{
-    int width;
-    int height;
-    int stride;
-    uint8_t *data;
-} HuImage;
-
-
-HuSize get_image_rotation_box(HuImage *img, float angle)
-{
-    HuSize size;
-
+void get_image_rotation_box(uint8_t *img, int width, int height, int stride, float angle, int &cols, int &rows){
     int dstx[4], dsty[4];
     int srcx[4], srcy[4];
 
     float sina = sin(angle);
     float cosa = cos(angle);
 
-    int cx = img->width >> 1;
-    int cy = img->height >> 1;
+    int cx = width >> 1;
+    int cy = height >> 1;
 
     srcx[0] = -cx;
     srcy[0] = -cy;
@@ -62,173 +37,136 @@ HuSize get_image_rotation_box(HuImage *img, float angle)
     dsty[3] = (int)(srcx[3] * sina + srcy[3] * cosa);
 
 
-    size.width  = HU_MAX(abs(dstx[2]-dstx[0]), abs(dstx[3]-dstx[1]));
-    size.height = HU_MAX(abs(dsty[2]-dsty[0]), abs(dsty[3]-dsty[1]));
-
-
-    return size;
+    cols = HU_MAX(abs(dstx[2]-dstx[0]), abs(dstx[3]-dstx[1]));
+    rows = HU_MAX(abs(dsty[2]-dsty[0]), abs(dsty[3]-dsty[1]));
 }
 
 
-void rotate_image_color(HuImage *src, HuImage *res, float angle)
+void rotate_image_color(uint8_t *src, int srcw, int srch, int srcs, float angle,
+        uint8_t *dst, int &dstw, int &dsth, int &dsts)
 {
-    int srcW, srcH, halfSW, halfSH;
-    int dstW, dstH, halfDW, halfDH;
+    float sina = sinf(angle);
+    float cosa = cosf(angle);
+    int hsw, hsh, hdw, hdh;
 
-    float sina = sin(angle);
-    float cosa = cos(angle);
+    get_image_rotation_box(src, srcw, srch, srcs, angle, dstw, dsth);
 
-    int i, j;
+    dsts = dstw * 3;
 
+    assert((dstw * dsth) < (srcw * srch * 4));
 
-    HuSize size = get_image_rotation_box(src, angle);
+    hsw = srcw >> 1;
+    hsh = srch >> 1;
+    hdw = dstw >> 1;
+    hdh = dsth >> 1;
 
-    if(res->width * res->height < size.width * size.height)
-    {
-        if(res->data!=NULL)
-            free(res->data);
+    for(int j = 0; j < dsth; j++){
+        float y = j - hdh;
 
-        res->data = (uint8_t*)malloc(sizeof(uint8_t) * size.width * size.height * 3);
-    }
+        for(int i = 0; i < dstw; i++){
+            float x = i - hdw;
 
-    memset(res->data, 0, sizeof(uint8_t) * size.width * size.height * 3);
+            float cx = x * cosa - y * sina + hsw;
+            float cy = x * sina + y * cosa + hsh;
 
-    res->width = size.width;
-    res->height = size.height;
-    res->stride = 3 * size.width;
+            int x0 = int(cx);
+            int y0 = int(cy);
+            int x1 = x0 + 1;
+            int y1 = y0 + 1;
 
-    srcW = src->width;
-    srcH = src->height;
-    dstW = res->width;
-    dstH = res->height;
-
-    halfSW = srcW / 2;
-    halfSH = srcH / 2;
-    halfDW = dstW / 2;
-    halfDH = dstH / 2;
-
-
-    for(j = 0; j < dstH; j++)
-    {
-        float y = j - halfDH;
-
-        for(i = 0; i < dstW; i++)
-        {
-            float x = i - halfDW;
-
-            float cx = x * cosa - y * sina + halfSW;
-            float cy = x * sina + y * cosa + halfSH;
-
-            int x0 = floor(cx);
-            int y0 = floor(cy);
-
-            int x1 = ceil(cx);
-            int y1 = ceil(cy);
-
-
-            if(x0 < 0 || x1 >= srcW || y0 < 0 || y1 >= srcH)
+            if(x0 < 0 || x1 >= srcw || y0 < 0 || y1 >= srch)
                 continue;
 
-            float wx = cx - x0;
-            float wy = cy - y0;
+            float wx, wy;
+            uint8_t *ptrData1, *ptrDst, *ptrData2;
+            float value1, value2;
 
-            uint8_t* ptrResData = res->data + j * res->stride + i * 3;
-            uint8_t* ptrSrcData00 = src->data + y0 * src->stride + x0 * 3;
-            uint8_t* ptrSrcData01 = src->data + y0 * src->stride + x0 * 3;
-            uint8_t* ptrSrcData10 = src->data + y0 * src->stride + x0 * 3;
-            uint8_t* ptrSrcData11 = src->data + y0 * src->stride + x0 * 3;
+            wx = x1 - cx;
+            wy = y1 - cy;
 
-            for(int i = 0; i < 3; i++)
-            {
-                float t1, t2, t;
+            ptrData1 = src + y0 * srcs + x0 * 3;
+            ptrData2 = src + y1 * srcs + x0 * 3;
+            ptrDst = dst + j * dsts + i * 3;
 
-                t1 = (1-wx) * ptrSrcData00[i] + wx * ptrSrcData01[i];
-                t2 = (1-wx) * ptrSrcData10[i] + wx * ptrSrcData11[i];
+            value1 = wx * (ptrData1[0] - ptrData1[3]) + ptrData1[3];
+            value2 = wx * (ptrData2[0] - ptrData2[3]) + ptrData2[3];
 
-                t = (1-wy) * t1 + wy * t2;
+            ptrDst[0] = uint8_t(wy * (value1 - value2) + value2 + 0.5f);
 
-                ptrResData[i] = round(t);
-            }
+            value1 = wx * (ptrData1[1] - ptrData1[4]) + ptrData1[4];
+            value2 = wx * (ptrData2[1] - ptrData2[4]) + ptrData2[4];
+
+            ptrDst[1] = uint8_t(wy * (value1 - value2) + value2 + 0.5f);
+
+            value1 = wx * (ptrData1[2] - ptrData1[5]) + ptrData1[5];
+            value2 = wx * (ptrData2[2] - ptrData2[5]) + ptrData2[5];
+
+            ptrDst[2] = uint8_t(wy * (value1 - value2) + value2 + 0.5f);
         }
     }
 }
 
 
-void mat2huimage(cv::Mat &src, HuImage *res)
-{
-    res->width = src.cols;
-    res->height = src.rows;
-    res->stride = src.step;
+#include <omp.h>
 
-    res->data = src.data;
-}
-
-
-
-int main(int argc, char **argv)
-{
-    if(argc < 3)
-    {
-        printf("Usage:%s [image list] [out dir]\n", argv[0]);
-        return 1;
+int main(int argc, char **argv){
+    if(argc < 3){
+        printf("Usage: %s [image list] [out dir]\n", argv[0]);
+        return 0;
     }
 
-    std::vector<std::string> imageList;
+    std::vector<std::string> imgList;
+    int size;
+    float delta;
 
-    char *outdir, outname[128], imgname[40], imgdir[128], ext[20];
-    int len, size;
+    char rootDir[256], fileName[256], ext[30], filePath[256];
 
-    cv::Mat img, dst;
-    HuImage src, res;
+    read_file_list(argv[1], imgList);
 
-    read_file_list(argv[1], imageList);
+    delta = 2.0f * HU_PI / 360.0f;
 
-    size = imageList.size();
+    size = imgList.size();
 
+//#pragma omp parallel for num_threads(omp_get_num_procs() - 1)
+    for(int i = 0; i < size; i++){
+        cv::Mat img = cv::imread(imgList[i], 1);
 
-    outdir = argv[2];
-    len = strlen(outdir);
+        if(img.empty()){
+            printf("Can't open image %s\n", imgList[i].c_str());
+            continue;
+        }
 
-    if(outdir[len-1] == '/')
-        outdir[len-1] = '\0';
+        analysis_file_path(imgList[i].c_str(), rootDir, fileName, ext);
+        uint8_t *dstData;
+        int dstw, dsth, dsts;
+        int capacity;
 
+        capacity = img.cols * img.rows * 3 * 4;
 
-    res.width = 0;
-    res.height = 0;
-    res.data = NULL;
+        dstData = new uint8_t[capacity];
 
-    float delta = 2 * HU_PI / 360;
-
-    for(int i = 0; i < size; i++)
-    {
-        img = cv::imread(imageList[i]);
-
-        assert(img.channels() == 3);
-
-        mat2huimage(img, &src);
-
-        analysis_file_path(imageList[i].c_str(), imgdir, imgname, ext);
-
-        for(int j = 5; j < 360; j += 5)
-        {
+        for(int j = 5; j < 360; j += 5){
             float angle = j * delta;
 
-            rotate_image_color(&src, &res, angle);
+            dstw = 0, dsts = 0, dsth = 0;
 
-            sprintf(outname, "%s/rotate_%d/%s.jpg", outdir, j, imgname);
-//            sprintf(outname, "%s/%s_%d.jpg", outdir, imgname, j);
+            memset(dstData, 0, sizeof(uint8_t) * capacity);
+            rotate_image_color(img.data, img.cols, img.rows, img.step, angle,
+                    dstData, dstw, dsth, dsts);
 
-            dst = cv::Mat(res.height, res.width, CV_8UC3, res.data, res.stride);
+            sprintf(filePath, "%s/%s_%d.jpg", argv[2], fileName, j);
 
-            cv::imwrite(outname, dst);
+            if(img.cols > 0 && img.rows > 0){
+                cv::Mat res(dsth, dstw, CV_8UC3, dstData, dsts);
+                if(!cv::imwrite(filePath, res)){
+                    printf("Can't write image %s\n", filePath);
+                }
+            }
         }
 
-        printf("%d\r", i);
-        fflush(stdout);
+        printf("%d\r", i), fflush(stdout);
+        delete [] dstData;
     }
-
-    if(res.data != NULL)
-        free(res.data);
 
     return 0;
 }

@@ -154,9 +154,19 @@ int main(int argc, char **argv)
     size = imageList.size();
 
 
+    for(int i = 5; i < 360; i += 5){
+        char command[256];
+        sprintf(command, "mkdir -p %s/rotate_%d", outdir, i);
+        int ret = system(command);
+    }
+
     for(int i = 0; i < size; i++)
     {
         img = cv::imread(imageList[i], 0);
+        if(img.empty()){
+            printf("Can't open image %s\n", imageList[i].c_str());
+            continue;
+        }
 
         analysis_file_path(imageList[i].c_str(), imgdir, imgname, ext);
 
@@ -168,7 +178,10 @@ int main(int argc, char **argv)
 
             sprintf(outname, "%s/rotate_%d/%s.bmp", outdir, j, imgname);
 
-            cv::imwrite(outname, dst);
+
+            if(!cv::imwrite(outname, dst)){
+                printf("Can't write image %s\n", outname);
+            }
         }
 
         printf("%d\r", i);

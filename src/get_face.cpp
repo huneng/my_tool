@@ -3,8 +3,8 @@
 #include <stdlib.h>
 
 
-#define WIN_SIZE 400
-#define POINT_RADIUS 4
+#define WIN_SIZE 200
+#define POINT_RADIUS 2
 
 int main(int argc, char **argv)
 {
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
             cv::circle(patch, shape[p], POINT_RADIUS, cv::Scalar(0, 255, 0), -1);
             char str[4];
             sprintf(str, "%d", p);
-            cv::putText(patch, str, cv::Point(shape[p].x + 5, shape[p].y), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(255, 0, 0));
+            //cv::putText(patch, str, cv::Point(shape[p].x + 5, shape[p].y), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(255, 0, 0));
         }
 
         sprintf(filePath, "%s/%s.jpg", argv[2], fileName);
