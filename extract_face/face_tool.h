@@ -31,8 +31,8 @@ typedef struct {
 int read_pts_file(const char *filePath, std::vector<cv::Point2f> &shapes);
 int write_pts_file(const char *filePath, std::vector<cv::Point2f> &shapes);
 
-int calc_face_rect(int width, int height, std::vector<cv::Point2f> &shape, cv::Rect &rect);
 void get_shape_rect(std::vector<cv::Point2f> &shape, cv::Rect &rect);
+int calc_face_rect(int width, int height, std::vector<cv::Point2f> &shape, cv::Rect &rect);
 void load_sample(const char *imgPath, cv::Mat &img, Shape &shape);
 void normalize_sample(cv::Mat &src, cv::Mat &patch, int winSize, std::vector<cv::Point2f> &shape);
 int write_sample(cv::Mat &img, std::vector<cv::Point2f> &shape, const char *outDir, const char *outName);
@@ -48,5 +48,11 @@ void show_shape(uint8_t *img, int width, int height, int stride, Shape &shape, c
 
 int read_samples(const char *listFile, std::vector<Sample*> &samples, int winSize);
 void release(std::vector<Sample*> &samples);
+
+void calc_mean_shape_global(std::vector<Shape > &shapes, int SHAPE_SIZE, Shape &meanShape);
+
+void affine_sample(cv::Mat& src, Shape &shape, float angle, float scale, cv::Point2f &center);
+
+void transform_sample(cv::Mat &img, Shape &shape);
 
 #endif

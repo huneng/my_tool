@@ -184,14 +184,17 @@ void normalize_sample(cv::Mat &src, cv::Mat &patch, int winSize, std::vector<cv:
         bl = -x0;
         x0 = 0;
     }
+
     if(y0 < 0){
         bt = -y0;
         y0 = 0;
     }
+
     if(x1 > width - 1){
         br = x1 - width + 1;
         x1 = width - 1;
     }
+
     if(y1 > height - 1){
         bb = y1 - height + 1;
         y1 = height - 1;
@@ -511,3 +514,143 @@ void release(std::vector<Sample*> &samples){
 }
 
 
+#define MAX_PTS_SIZE 74
+void calc_mean_shape_global(std::vector<Shape > &shapes, int SHAPE_SIZE, Shape &meanShape)
+{
+    int size = shapes.size();
+    int ptsSize = shapes[0].size();
+
+    double cxs[MAX_PTS_SIZE], cys[MAX_PTS_SIZE];
+
+    float minx, miny, maxx, maxy;
+    float cx, cy, w, h, faceSize, scale;
+
+
+    meanShape.resize(ptsSize);
+
+    memset(cxs, 0, sizeof(double) * MAX_PTS_SIZE);
+    memset(cys, 0, sizeof(double) * MAX_PTS_SIZE);
+
+    for(int i = 0; i < size; i++){
+        Shape &shape = shapes[i];
+
+        minx = FLT_MAX; maxx = -FLT_MAX;
+        miny = FLT_MAX; maxy = -FLT_MAX;
+
+        for(int j = 0; j < ptsSize; j++){
+            minx = HU_MIN(shape[j].x, minx);
+            maxx = HU_MAX(shape[j].x, maxx);
+            miny = HU_MIN(shape[j].y, miny);
+            maxy = HU_MAX(shape[j].y, maxy);
+        }
+
+        w = maxx - minx + 1;
+        h = maxy - miny + 1;
+
+        cx = (maxx + minx) / 2;
+        cy = (maxy + miny) / 2;
+
+        faceSize = HU_MAX(w, h);
+
+        scale = SHAPE_SIZE / faceSize;
+
+        for(int j = 0; j < ptsSize; j++){
+            cxs[j] += (shape[j].x - cx) * scale + SHAPE_SIZE / 2;
+            cys[j] += (shape[j].y - cy) * scale + SHAPE_SIZE / 2;
+        }
+    }
+
+    minx =  FLT_MAX, miny =  FLT_MAX;
+    maxx = -FLT_MAX, maxy = -FLT_MAX;
+
+    for(int j = 0; j < ptsSize; j++){
+        meanShape[j].x = cxs[j] / size;
+        meanShape[j].y = cys[j] / size;
+
+        minx = HU_MIN(minx, meanShape[j].x);
+        maxx = HU_MAX(maxx, meanShape[j].x);
+
+        miny = HU_MIN(miny, meanShape[j].y);
+        maxy = HU_MAX(maxy, meanShape[j].y);
+    }
+
+    w = maxx - minx + 1;
+    h = maxy - miny + 1;
+
+    cx = (maxx + minx) / 2;
+    cy = (maxy + miny) / 2;
+
+    faceSize = HU_MAX(w, h) * 1.1;
+
+    scale = SHAPE_SIZE / faceSize;
+
+    for(int j = 0; j < ptsSize; j++){
+        meanShape[j].x = (meanShape[j].x - cx) * scale + SHAPE_SIZE / 2;
+        meanShape[j].y = (meanShape[j].y - cy) * scale + SHAPE_SIZE / 2;
+    }
+}
+
+
+void affine_shape(Shape &shape, float scale, float sina, float cosa, cv::Point2f &centroid){
+    int ptsSize = shape.size();
+
+    float ssina = sina * scale;
+    float scosa = cosa * scale;
+
+    for(int i = 0; i < ptsSize; i++){
+        float x = shape[i].x - centroid.x;
+        float y = shape[i].y - centroid.y;
+
+        shape[i].x =  x * scosa + y * ssina + centroid.x;
+        shape[i].y = -x * ssina + y * scosa + centroid.y;
+    }
+}
+
+
+void affine_sample(cv::Mat& src, Shape &shape, float angle, float scale, cv::Point2f &center)
+{
+    cv::Mat affMat;
+
+    float sina = sin(angle);
+    float cosa = cos(angle);
+
+    angle = angle / HU_PI * 180.0f;
+    affMat = cv::getRotationMatrix2D(center, angle, scale);
+
+    cv::warpAffine(src, src, affMat, src.size());
+
+    affine_shape(shape, scale, sina, cosa, center);
+}
+
+
+void transform_sample(cv::Mat &img, Shape &shape){
+    cv::RNG rng(cv::getTickCount());
+
+    float angle = rng.uniform(-HU_PI / 10, HU_PI / 10);
+    cv::Point2f center;
+
+    center.x = img.cols >> 1;
+    center.y = img.rows >> 1;
+
+    affine_sample(img, shape, angle, 1.0, center);
+
+    if(rng.uniform(0, 8) == 1){
+        uint8_t *data = img.data;
+
+        for(int y = 0; y < img.rows; y++){
+            for(int x = 0; x < img.step; x++){
+                if(data[x] > 16 && data[x] < 239)
+                    data[x] += rng.uniform(-8, 8);
+            }
+
+            data += img.step;
+        }
+    }
+
+    if(rng.uniform(0, 8) == 1){
+        int kern = rng.uniform(1, 3);
+
+        kern = kern * 2 + 1;
+        cv::GaussianBlur(img, img, cv::Size(kern, kern), 0, 0);
+    }
+}

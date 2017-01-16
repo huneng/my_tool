@@ -2,14 +2,11 @@ OBJ=face_tool.o tool.o
 DEPS=-I/usr/local/include -I/usr/local/include/opencv -lopencv_core -lopencv_imgproc -lopencv_highgui
 FLAGS=-O3
 
-ODIR=bin
-DST = $(ODIR)/main
+DST = bin/main
 	
 
-all:outdir ${DST}
-
-outdir:
-	mkdir -p $(ODIR)
+all:${DST}
+	cp ${DST} ../
 
 ${DST}: main.cpp ${OBJ}
 	g++ ${FLAGS} $^ -o $@ ${DEPS}
