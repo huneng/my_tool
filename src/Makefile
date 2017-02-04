@@ -1,8 +1,8 @@
 OBJ=face_tool.o tool.o
 DEPS=-I/usr/local/include -I/usr/local/include/opencv -lopencv_core -lopencv_imgproc -lopencv_highgui
-FLAGS=-O3
+FLAGS=-O3 -fopenmp
 
-DST= get_face norm_face image_t blur_image color2gray extract_frame merge_show rotate_image rotate_image_color scale_image \
+DST= neg_patch get_face norm_face image_t blur_image color2gray extract_frame merge_show rotate_image rotate_image_color scale_image \
 	show_list create_sample 
 
 all:${DST}
