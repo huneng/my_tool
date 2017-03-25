@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 
-#define WIN_SIZE 200
+#define WIN_SIZE 400
 #define POINT_RADIUS 2
 
 int main(int argc, char **argv)

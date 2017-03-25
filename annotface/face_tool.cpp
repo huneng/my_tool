@@ -48,7 +48,7 @@ int write_pts_file(const char *filePath, std::vector<cv::Point2f> &shapes)
     }
 
     fprintf(fout, "version: 1\n");
-    fprintf(fout, "n_points:  68\n");
+    fprintf(fout, "n_points:  %ld\n", shapes.size());
     fprintf(fout, "{\n");
 
 
