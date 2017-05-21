@@ -168,7 +168,7 @@ void normalize_sample(cv::Mat &src, cv::Mat &patch, int winSize, std::vector<cv:
 
     get_shape_rect(shape, rect);
 
-    faceSize = rect.width * 2;
+    faceSize = rect.width * 1.2;
 
     int cx = rect.x + (rect.width  >> 1);
     int cy = rect.y + (rect.height >> 1);
