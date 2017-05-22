@@ -3,10 +3,11 @@ DEPS=-I/usr/local/include -I/usr/local/include/opencv -lopencv_core -lopencv_img
 FLAGS=-O3 -fopenmp
 
 DST= neg_patch get_face norm_face image_t blur_image color2gray extract_frame merge_show rotate_image rotate_image_color scale_image \
-	show_list create_sample gen_time hashMatch
+	show_list create_sample gen_time hashMatch annot_rect
 
 all:${DST}
-	cp ${DST} ../
+	mkdir -p ../bin
+	cp ${DST} ../bin
 
 ${DST}: %:%.cpp ${OBJ}
 	g++ ${FLAGS} $^ -o $@ ${DEPS}

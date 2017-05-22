@@ -7,6 +7,7 @@ DST = $(OUTDIR)/annot
 	
 
 all:outdir ${DST}
+	cp $(DST) ../
 
 outdir:
 	mkdir -p $(OUTDIR)

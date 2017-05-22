@@ -5,6 +5,7 @@ DST = $(OUTDIR)/3DGen
 DEPS = -lGL -lGLEW -lglfw -O3 -lopencv_core -lopencv_imgproc -lopencv_highgui
 
 all: outdir $(DST)
+	cp $(DST) ../
 
 outdir:
 	mkdir -p $(OUTDIR)
