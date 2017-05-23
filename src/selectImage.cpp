@@ -59,6 +59,9 @@ int main(int argc, char **argv){
         else if(key == 'n'){
             id ++;
         }
+        else {
+            continue;
+        }
 
         id = HU_MAX(id, 0);
         id = HU_MIN(id, size - 1);
