@@ -31,7 +31,7 @@ int main(int argc, char **argv){
 
     while(key != 'q'){
         cv::Mat img = cv::imread(imgList[id], 1);
-        printf("%s\r", imgList[id].c_str()), fflush(stdout);
+        printf("%3d %4d %s\r", id, size - id, imgList[id].c_str()), fflush(stdout);
         if(img.cols > 720)
             cv::resize(img, img, cv::Size(720, img.rows * 720 / img.cols));
 

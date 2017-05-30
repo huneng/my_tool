@@ -33,7 +33,7 @@ int main(int argc, char **argv){
 
         read_pts_file(filePath, shape);
 
-        normalize_sample(img, patch, WIN_SIZE << 1, shape);
+        normalize_sample(img, patch, WIN_SIZE << 1, 2.0, shape);
 
         write_sample(patch, shape, argv[2], fileName);
 

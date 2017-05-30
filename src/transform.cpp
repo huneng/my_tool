@@ -1,450 +1,321 @@
 #include "tool.h"
 
 #include <stdint.h>
+#include <omp.h>
 #include <math.h>
 
 #include "face_tool.h"
 
-typedef struct {
-    int width;
-    int height;
-} HuSize;
+#define WIN_SIZE 288
+#define FACTOR 3.0f
 
 
-typedef struct
-{
-    int width;
-    int height;
-    int stride;
-    uint8_t *data;
-} HuImage;
-
-
-void draw_rect_points(cv::Mat &img, std::vector<cv::Point2f> &shape){
-
-    if(img.channels() == 1){
-        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
-    }
-
-
+static void vertical_mirror(Shape &shape, int width){
     int ptsSize = shape.size();
 
-    float minx, miny, maxx, maxy;
-    minx = maxx = shape[0].x;
-    miny = miny = shape[0].y;
+    for(int i = 0; i < ptsSize; i++)
+        shape[i].x = width - 1 - shape[i].x;
 
-    for(int i = 0; i < ptsSize; i++){
-        cv::circle(img, shape[i], 4, cv::Scalar(0, 3 * i, 0), 2);
+    if(ptsSize == 68){
+        int idxs1[29] = {  0,  1,  2,  3,  4,  5,  6,  7,
+                        17, 18, 19, 20, 21,
+                        31, 32,
+                        36, 37, 38, 39, 40, 41,
+                        48, 49, 50, 58, 59, 60, 61, 67 };
 
-        minx = HU_MIN(minx, shape[i].x);
-        maxx = HU_MAX(maxx, shape[i].x);
-        miny = HU_MIN(miny, shape[i].y);
-        maxy = HU_MAX(maxy, shape[i].y);
-        cv::imshow("img", img);
-        cv::waitKey();
+        int idxs2[29] = { 16, 15, 14, 13, 12, 11, 10,  9,
+                        26, 25, 24, 23, 22,
+                        35, 34,
+                        45, 44, 43, 42, 47, 46,
+                        54, 53, 52, 56, 55, 64, 63, 65 };
+
+
+        for(int i = 0; i < 29; i++){
+            int id1 = idxs1[i];
+            int id2 = idxs2[i];
+
+            HU_SWAP(shape[id1], shape[id2], cv::Point2f);
+        }
+
     }
+    else if(ptsSize == 51){
+        int idxs1[21] = {
+            0, 1, 2, 3, 4,
+            14, 15,
+            19, 20, 21, 22, 23, 24,
+            31, 32, 33, 41, 42, 43, 44, 50};
 
-    cv::Rect rect;
-    rect.x = int(minx);
-    rect.y = int(miny);
-    rect.width = int(maxx - minx + 1);
-    rect.height = int(maxy - miny + 1);
+        int idxs2[21] = {
+                        9, 8, 7, 6, 5,
+                        18, 17,
+                        28, 27, 26, 25, 30, 29,
+                        37, 36, 35, 39, 38, 47, 46, 48};
 
-    cv::rectangle(img, rect, cv::Scalar(255, 0, 0), 2);
+        for(int i = 0; i < 21; i++){
+            int id1 = idxs1[i];
+            int id2 = idxs2[i];
 
+            HU_SWAP(shape[id1], shape[id2], cv::Point2f);
+        }
+    }
+    else if(ptsSize == 101){
+        int idxs1[46] = {
+            0, 1, 2, 3, 4, 5, 6, 7, 8,
+            19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+            39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 95,
+            63, 64, 65, 66, 67, 68,
+            75, 76, 77, 85, 86, 87, 88, 94,
+        };
+        int idxs2[46] = {
+            18, 17, 16, 15, 14, 13, 12, 11, 10,
+            34, 33, 32, 31, 30, 29, 38, 37, 36, 35,
+            57, 56, 55, 54, 53, 52, 51, 62, 61, 60, 59, 58, 96,
+            74, 73, 72, 71, 70, 69,
+            81, 80, 79, 83, 82, 91, 90, 92
+        };
 
+        for(int i = 0; i < 46; i++){
+            int id1 = idxs1[i];
+            int id2 = idxs2[i];
+
+            HU_SWAP(shape[id1], shape[id2], cv::Point2f);
+        }
+    }
+    else{
+        printf("NO PTS FORMAT: %d\n", ptsSize);
+        exit(-1);
+    }
 }
 
 
-HuSize get_image_rotation_box(HuImage *img, float angle)
-{
-    HuSize size;
-
-    int dstx[4], dsty[4];
-    int srcx[4], srcy[4];
-
-    float sina = sin(angle);
-    float cosa = cos(angle);
-
-    int cx = img->width >> 1;
-    int cy = img->height >> 1;
-
-    srcx[0] = -cx;
-    srcy[0] = -cy;
-
-    srcx[1] = cx;
-    srcy[1] = -cy;
-
-    srcx[2] = cx;
-    srcy[2] = cy;
-
-    srcx[3] = -cx;
-    srcy[3] = cy;
-
-
-    dstx[0] = (int)(srcx[0] * cosa - srcy[0] * sina);
-    dsty[0] = (int)(srcx[0] * sina + srcy[0] * cosa);
-
-    dstx[1] = (int)(srcx[1] * cosa - srcy[1] * sina);
-    dsty[1] = (int)(srcx[1] * sina + srcy[1] * cosa);
-
-    dstx[2] = (int)(srcx[2] * cosa - srcy[2] * sina);
-    dsty[2] = (int)(srcx[2] * sina + srcy[2] * cosa);
-
-    dstx[3] = (int)(srcx[3] * cosa - srcy[3] * sina);
-    dsty[3] = (int)(srcx[3] * sina + srcy[3] * cosa);
-
-
-    size.width  = HU_MAX(abs(dstx[2]-dstx[0]), abs(dstx[3]-dstx[1]));
-    size.height = HU_MAX(abs(dsty[2]-dsty[0]), abs(dsty[3]-dsty[1]));
-
-
-    return size;
+void mirror_sample(uint8_t *img, int width, int height, int stride, Shape &shape){
+    mirror_image(img, width, height, stride);
+    vertical_mirror(shape, width);
 }
 
 
-void rotate_image_color(HuImage *src, HuImage *res, float angle)
-{
-    int srcW, srcH, halfSW, halfSH;
-    int dstW, dstH, halfDW, halfDH;
+void transform_image(uint8_t *img, int width, int height, int stride, Shape &shape){
+    static cv::RNG rng(cv::getTickCount());
 
-    float sina = sin(angle);
-    float cosa = cos(angle);
+    assert(stride * height < 4096 * 4096);
 
-    int i, j;
+    if(rng.uniform(0, 10) == 0){
+        uint8_t *data = img;
 
-    HuSize size = get_image_rotation_box(src, angle);
+        for(int y = 0; y < height; y++){
+            for(int x = 0; x < width; x++){
+                if(data[x] > 16 && data[x] < 239)
+                    data[x] += rng.uniform(-8, 8);
+            }
 
-    if(res->width * res->height < size.width * size.height)
-    {
-        if(res->data!=NULL)
-            free(res->data);
-
-        res->data = (uint8_t*)malloc(sizeof(uint8_t) * size.width * size.height * 3);
+            data += stride;
+        }
     }
 
-    memset(res->data, 0, sizeof(uint8_t) * size.width * size.height * 3);
-    assert(res->data != NULL);
+    if(rng.uniform(0, 10) == 1){
+        cv::Mat sImg(height, width, CV_8UC1, img);
+        cv::Mat blur;
 
-    res->width = size.width;
-    res->height = size.height;
-    res->stride = 3 * size.width;
+        int bsize = 2 * rng.uniform(1, 4) + 1;
+        cv::GaussianBlur(sImg, blur, cv::Size(bsize, bsize), 0, 0);
 
-    srcW = src->width;
-    srcH = src->height;
-    dstW = res->width;
-    dstH = res->height;
+        for(int y = 0; y < height; y++)
+            memcpy(img + y * stride, blur.data + y * blur.step, sizeof(uint8_t) * width);
+    }
 
-    halfSW = srcW / 2;
-    halfSH = srcH / 2;
-    halfDW = dstW / 2;
-    halfDH = dstH / 2;
+    if(rng.uniform(0, 10) == 2){
+        mirror_sample(img, width, height, stride, shape);
+    }
+}
 
-    for(j = 0; j < dstH; j++)
-    {
-        float y = j - halfDH;
+#define FIX_INTER_POINT 14
 
-        for(i = 0; i < dstW; i++)
-        {
-            float x = i - halfDW;
+void affine_sample_color(uint8_t *img, int width, int height, int stride, Shape &shape, float scale, float angle, uint8_t *dst){
+    int FIX_ONE = 1 << FIX_INTER_POINT;
+    int FIX_0_5 = FIX_ONE >> 1;
 
-            float cx = x * cosa - y * sina + halfSW;
-            float cy = x * sina + y * cosa + halfSH;
+    float sina = sinf(-angle) / scale;
+    float cosa = cosf(-angle) / scale;
 
-            int x0 = floor(cx);
-            int y0 = floor(cy);
-            int x1 = ceil(cx);
-            int y1 = ceil(cy);
+    int id = 0;
 
+    int dstw = width;
+    int dsth = height;
+    int dsts = stride;
 
-            if(x0 < 0 || x1 >= srcW || y0 < 0 || y1 >= srcH)
+    int *xtable = new int[(dstw << 1) + (dsth << 1)]; assert(xtable != NULL);
+    int *ytable = xtable + (dstw << 1);
+
+    cv::Point2f center(width >> 1, height >> 1);
+
+    int fcx = center.x * FIX_ONE;
+    int fcy = center.y * FIX_ONE;
+
+    for(int i = 0; i < dsth; i++){
+        int idx = i << 1;
+
+        float y = (i - center.y);
+
+        ytable[idx]     = y * sina * FIX_ONE + fcx;
+        ytable[idx + 1] = y * cosa * FIX_ONE + fcy;
+    }
+
+    for(int i = 0; i < dstw; i++){
+        int idx = i << 1;
+
+        float x = (i - center.x);
+
+        xtable[idx]     = x * sina * FIX_ONE;
+        xtable[idx + 1] = x * cosa * FIX_ONE;
+    }
+
+    memset(dst, 0, sizeof(uint8_t) * width * height);
+
+    id = 0;
+    for(int y = 0; y < dsth; y++){
+        int idx = y << 1;
+
+        int ys = ytable[idx]    ;
+        int yc = ytable[idx + 1];
+
+        for(int x = 0; x < dstw; x++){
+            idx = x << 1;
+
+            int xs = xtable[idx];
+            int xc = xtable[idx + 1];
+
+            int fx =  xc + ys;
+            int fy = -xs + yc;
+
+            int x0 = fx >> FIX_INTER_POINT;
+            int y0 = fy >> FIX_INTER_POINT;
+
+            int wx = fx - (x0 << FIX_INTER_POINT);
+            int wy = fy - (y0 << FIX_INTER_POINT);
+
+            if(x0 < 0 || x0 >= width || y0 < 0 || y0 >= height)
                 continue;
 
-            float wx = cx - x0;
-            float wy = cy - y0;
+            assert(wx <= FIX_ONE && wy <= FIX_ONE);
 
-            uint8_t* ptrResData = res->data + j * res->stride + i * 3;
-            uint8_t* ptrSrcData00 = (src->data + y0 * src->stride + x0 * 3);
-            uint8_t* ptrSrcData01 = (src->data + y0 * src->stride + x1 * 3);
-            uint8_t* ptrSrcData10 = (src->data + y1 * src->stride + x0 * 3);
-            uint8_t* ptrSrcData11 = (src->data + y1 * src->stride + x1 * 3);
+            uint8_t *ptr1, *ptr2;
+            uint8_t value0, value1;
 
-            assert(0 <= i && i < dstW);
-            assert(0 <= j && j < dstH);
-            assert(0 <= x0 && x1 < srcW);
-            assert(0 <= y0 && y1 < srcH);
+            ptr1 = img + y0 * stride + x0 * 3;
+            ptr2 = ptr1 + stride;
 
-            for(int k = 0; k < 3; k++)
-            {
-                float t1, t2, t;
+            value0 = ((ptr1[0] << FIX_INTER_POINT) + (ptr1[3] - ptr1[0]) * wx + FIX_0_5) >> FIX_INTER_POINT;
+            value1 = ((ptr2[0] << FIX_INTER_POINT) + (ptr2[3] - ptr2[0]) * wx + FIX_0_5) >> FIX_INTER_POINT;
 
-                t1 = (1-wx) * ptrSrcData00[k] + wx * ptrSrcData01[k];
-                t2 = (1-wx) * ptrSrcData10[k] + wx * ptrSrcData11[k];
+            dst[id + x * 3] = ((value0 << FIX_INTER_POINT) + (value1 - value0) * wy + FIX_0_5) >> FIX_INTER_POINT;
 
-                t = (1-wy) * t1 + wy * t2;
+            ptr1++;
+            ptr2++;
 
-                ptrResData[k] = ceil(t);
-            }
-        }
-    }
-}
+            value0 = ((ptr1[0] << FIX_INTER_POINT) + (ptr1[3] - ptr1[0]) * wx + FIX_0_5) >> FIX_INTER_POINT;
+            value1 = ((ptr2[0] << FIX_INTER_POINT) + (ptr2[3] - ptr2[0]) * wx + FIX_0_5) >> FIX_INTER_POINT;
 
+            dst[id + x * 3 + 1] = ((value0 << FIX_INTER_POINT) + (value1 - value0) * wy + FIX_0_5) >> FIX_INTER_POINT;
 
-void mat2huimage(cv::Mat &src, HuImage *res)
-{
-    res->width = src.cols;
-    res->height = src.rows;
-    res->stride = src.step;
+            ptr1++;
+            ptr2++;
 
-    res->data = src.data;
-}
+            value0 = ((ptr1[0] << FIX_INTER_POINT) + (ptr1[3] - ptr1[0]) * wx + FIX_0_5) >> FIX_INTER_POINT;
+            value1 = ((ptr2[0] << FIX_INTER_POINT) + (ptr2[3] - ptr2[0]) * wx + FIX_0_5) >> FIX_INTER_POINT;
 
-
-void resize_sample(cv::Mat &img, std::vector<cv::Point2f> &shape, int flag){
-    int ptsSize = shape.size();
-
-    float factor = 2.0;
-
-    if(flag >= 0 && flag < 4)
-        factor = 2.0;
-    if(flag >= 4 && flag < 8)
-        factor = 1.0;
-    if(flag >= 8 && flag < 9)
-        factor = 0.5;
-    if(flag >= 9 && flag < 10)
-        factor = 0.25;
-
-    int winSize = 196 * factor;
-
-    assert(img.cols == img.rows);
-
-    if(img.cols < winSize) return;
-
-    float scalex = float(img.cols) / winSize;
-    float scaley = float(img.rows) / winSize;
-
-    for(int i = 0; i < ptsSize; i++){
-        shape[i].x /= scalex;
-        shape[i].y /= scaley;
-    }
-
-    cv::resize(img, img, cv::Size(winSize, winSize));
-}
-
-
-
-
-
-int main_mirror_and_blur(int argc, char **argv){
-    if(argc < 3){
-        printf("Usage: %s [image list] [out dir]\n", argv[0]);
-        return 1;
-    }
-
-    std::vector<std::string> imageList;
-    int size = 0, ret;
-
-    ret = read_file_list(argv[1], imageList);
-    if(ret != 0) return 1;
-
-    size = imageList.size();
-
-    for(int i = 0; i < size; i++){
-        char outname[128];
-        std::vector<cv::Point2f> shape;
-
-        std::string imgPath = imageList[i];
-        std::string imgName = imgPath.substr(0, imgPath.rfind("."));
-        std::string ptsPath = imgName + ".pts";
-        int ptsSize = 0;
-#if defined(WIN32)
-        imgName = imgName.substr(imgPath.rfind("\\") + 1);
-#elif defined(linux)
-        imgName = imgName.substr(imgPath.rfind("/") + 1);
-#endif
-
-        cv::Mat img = cv::imread(imgPath, 1);
-
-        if(read_pts_file(ptsPath.c_str(), shape) == 0)
-            exit(2);
-
-        cv::Mat patch;
-        normalize_sample(img, patch, shape);
-
-        if(patch.channels() == 1)
-            cv::cvtColor(patch, patch, cv::COLOR_GRAY2BGR);
-
-        ptsSize = shape.size();
-
-        ret = write_sample(patch, shape, argv[2], imgName.c_str());
-
-        //noise image
-        cv::Mat noiseImg;
-        patch.copyTo(noiseImg);
-
-        noise_image(noiseImg.data, noiseImg.cols, noiseImg.rows, noiseImg.step);
-
-        sprintf(outname, "%s_noise", imgName.c_str());
-        ret = write_sample(noiseImg, shape, argv[2], outname);
-
-
-        cv::Mat normImg;
-        patch.copyTo(normImg);
-
-        npd_normalize(normImg.data, normImg.cols, normImg.rows, normImg.step);
-
-        sprintf(outname, "%s_norm", imgName.c_str());
-        ret = write_sample(normImg, shape, argv[2], outname);
-
-        mirror_image(patch.data, patch.cols, patch.rows, patch.step);
-
-        for(int j = 0; j < ptsSize; j++){
-            shape[j].x = patch.cols - 1 - shape[j].x;
+            dst[id + x * 3 + 2] = ((value0 << FIX_INTER_POINT) + (value1 - value0) * wy + FIX_0_5) >> FIX_INTER_POINT;
         }
 
-        mirror_points(shape);
-
-        sprintf(outname, "%s_v", imgName.c_str());
-        ret = write_sample(patch, shape, argv[2], outname);
-
-
-        printf("%.2f%%\r", 100.0 * (i+1)/size);fflush(stdout);
+        id += dsts;
     }
 
-    return 0;
+    delete [] xtable;
+
+    affine_shape(shape, center, shape, center, scale, angle);
+}
+
+void transform_sample(cv::Mat &img, Shape &shape){
+    float angle;
+    float scale;
+
+    cv::RNG rng(cv::getTickCount());
+
+    angle = rng.uniform(-HU_PI / 9, HU_PI / 9);
+    scale = 1.0f;
+
+    uint8_t *res = new uint8_t[img.step * img.rows];
+    memset(res, 0, sizeof(uint8_t) * img.step * img.rows);
+    affine_sample_color(img.data, img.cols, img.rows, img.step, shape, scale, angle, res);
+
+    memcpy(img.data, res, sizeof(uint8_t) * img.rows * img.step);
+
+    delete [] res;
+
+    //transform_image(img.data, img.cols, img.rows, img.step, shape);
 }
 
 
-int main_random(int argc, char **argv)
-{
+int main(int argc, char **argv){
     if(argc < 4){
         printf("Usage: %s [image list] [size] [out dir]\n", argv[0]);
         return 1;
     }
 
-    std::vector<std::string> imageList;
-    int size = 0, ret, tranSize;
-    cv::RNG rng(cv::getTickCount());
+    std::vector<std::string> imgList;
+    int size, tsize;
 
-    ret = read_file_list(argv[1], imageList);
-    if(ret != 0) return 1;
+    read_file_list(argv[1], imgList);
+    size = imgList.size();
 
-    tranSize = atoi(argv[2]);
+    tsize = atoi(argv[2]);
 
-    size = imageList.size();
+    int finished = 0;
+#pragma omp parallel for num_threads(omp_get_num_procs() - 1)
+    for(int i = 0; i < size; i++){
+        char rootDir[128], fileName[128], ext[30], filePath[256];
+        const char *imgPath = imgList[i].c_str();
 
-    HuImage res;
-    res.width = res.height = res.stride = 0;
-    res.data = NULL;
-
-    for(int i = 0; i < size; i++)
-    {
-        char outname[128];
-        std::vector<cv::Point2f> shape;
-
-        std::string imgPath = imageList[i];
-        std::string imgName = imgPath.substr(0, imgPath.rfind("."));
-        std::string ptsPath = imgName + ".pts";
-#if defined(WIN32)
-        imgName = imgName.substr(imgPath.rfind("\\")+1);
-#elif defined(linux)
-        imgName = imgName.substr(imgPath.rfind("/")+1);
-#endif
+        analysis_file_path(imgPath, rootDir, fileName, ext);
+        sprintf(filePath, "%s/%s.pts", rootDir, fileName);
 
         cv::Mat img = cv::imread(imgPath, 1);
-        assert(img.channels() == 3);
-
-        if( read_pts_file(ptsPath.c_str(), shape) == 0 )
-            exit(2);
-
-
-        cv::Mat patch;
-        normalize_sample(img, patch, shape);
-
-        cv::Mat rImg;
-        HuImage src;
-        int ptsSize = shape.size();
-
-        mat2huimage(patch, &src);
-
-        for(int j = 0; j < tranSize; j++){
-            float angle = rng.uniform(0.0, HU_PI/10);
-            int blurFlag = rng.uniform(0, 4);
-            int noiseFlag = rng.uniform(0, 4);
-            //int npdFlag = rng.uniform(0, 8);
-            int mirrorFlag = rng.uniform(0, 2);
-            int scaleFlag = rng.uniform(0, 11);
-
-
-            std::vector<cv::Point2f> resShape = shape;
-
-#define ROTATE_IMAGE
-#ifdef ROTATE_IMAGE
-            rotate_image_color(&src, &res, angle);
-            rImg = cv::Mat(res.height, res.width, CV_8UC3, res.data, res.stride);
-            rImg.copyTo(rImg);
-#else
-            patch.copyTo(rImg);
-
-#endif
-
-            //if(npdFlag == 0)
-            //    npd_normalize(rImg.data, rImg.cols, rImg.rows, rImg.step);
-
-            if(blurFlag == 0){
-                int bsize = rng.uniform(1, 4);
-                bsize = 2 * bsize + 1;
-                cv::GaussianBlur(rImg, rImg, cv::Size(bsize, bsize), 0, 0);
-            }
-
-            if(noiseFlag == 0)
-                noise_image(rImg.data, rImg.cols, rImg.rows, rImg.step);
-
-            //mirror
-            if(mirrorFlag == 1)
-                mirror_image(rImg.data, rImg.cols, rImg.rows, rImg.step);
-
-#ifdef ROTATE_IMAGE
-            float cosa = cos(angle);
-            float sina = sin(angle);
-
-            for(int k = 0; k < ptsSize; k++){
-                float x = resShape[k].x - patch.cols / 2;
-                float y = resShape[k].y - patch.rows / 2;
-
-                resShape[k].x = (cosa * x + sina * y) + rImg.cols / 2;
-                resShape[k].y = (-sina * x + cosa * y) + rImg.rows / 2;
-            }
-#endif
-            if(mirrorFlag == 1){
-                for(int k = 0; k < ptsSize; k++)
-                    resShape[k].x = rImg.cols - 1 - resShape[k].x;
-
-                mirror_points(resShape);
-            }
-
-
-            resize_sample(rImg, resShape, scaleFlag);
-
-            //            printf("angle = %f, scale = %f, blur = %d, mirror = %d\n", angle, scale, blurSize, mirrorFlag);
-
-            sprintf(outname, "%s_%d", imgName.c_str(), j);
-
-            ret = write_sample(rImg, resShape, argv[3], outname);
-
-            if(ret != 0) break;
+        if(img.empty()) {
+            printf("Can't open image %s\n", imgPath);
+            continue;
         }
 
-        printf("%d\r", i); fflush(stdout);
+        Shape shape;
+        int ret = read_pts_file(filePath, shape);
+        if(ret == 0){
+            printf("Can't open file %s\n", filePath);
+            continue;
+        }
+
+        cv::Mat patch;
+        cv::Mat res;
+        Shape shapeRes;
+
+        normalize_sample(img, patch, WIN_SIZE, FACTOR, shape);
+
+        for(int t = 0; t < tsize; t++){
+            patch.copyTo(res);
+            shapeRes = shape;
+
+            transform_sample(res, shapeRes);
+
+            sprintf(filePath, "%s/%s_%02d.jpg", argv[3], fileName, t);
+            cv::imwrite(filePath, res);
+
+            sprintf(filePath, "%s/%s_%02d.pts", argv[3], fileName, t);
+            write_pts_file(filePath, shapeRes);
+        }
+
+#pragma omp critical
+        {
+            finished++;
+            printf("%d\r", finished), fflush(stdout);
+        }
     }
-
-    return 0;
-}
-
-
-int main(int argc, char **argv){
-    //main_mirror_and_blur(argc, argv);
-    main_random(argc, argv);
 
     return 0;
 }

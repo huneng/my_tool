@@ -33,7 +33,9 @@ int write_pts_file(const char *filePath, std::vector<cv::Point2f> &shapes);
 
 int calc_face_rect(int width, int height, std::vector<cv::Point2f> &shape, cv::Rect &rect);
 void load_sample(const char *imgPath, cv::Mat &img, Shape &shape);
-void normalize_sample(cv::Mat &src, cv::Mat &patch, int winSize, std::vector<cv::Point2f> &shape);
+void normalize_sample(cv::Mat &src, cv::Mat &patch, int winSize, float factor, std::vector<cv::Point2f> &shape);
+void affine_sample(uint8_t *img, int width, int height, int stride, Shape &shape, float scale, float angle, uint8_t *dst);
+void affine_shape(Shape &shapeSrc, cv::Point2f cen1, Shape &shapeRes, cv::Point2f cen2, float scale, float angle);
 int write_sample(cv::Mat &img, std::vector<cv::Point2f> &shape, const char *outDir, const char *outName);
 
 void mirror_points(std::vector<cv::Point2f> &shape);

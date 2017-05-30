@@ -26,8 +26,7 @@ int main(int argc, char **argv)
     {
         cv::Mat img = cv::imread(imageList[i], 1);
 
-        if(img.cols > WIDTH)
-            cv::resize(img, img, cv::Size(WIDTH, WIDTH * img.rows / img.cols));
+        cv::resize(img, img, cv::Size(WIDTH, WIDTH * img.rows / img.cols));
 
         analysis_file_path(imageList[i].c_str(), imgdir, imgname, ext);
         sprintf(outname, "%s/%s.jpg", argv[3], imgname);

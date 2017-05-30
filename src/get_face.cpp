@@ -4,7 +4,7 @@
 
 
 #define WIN_SIZE 500
-#define POINT_RADIUS 2
+#define POINT_RADIUS 1
 
 int main(int argc, char **argv)
 {
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
         int ptsSize = read_pts_file(filePath, shape);
         if(ptsSize == 0) continue;
 
-        normalize_sample(img, patch, WIN_SIZE, shape);
+        normalize_sample(img, patch, WIN_SIZE, 1.2, shape);
 //*
         for(int p = 0; p < ptsSize; p++){
             cv::circle(patch, shape[p], POINT_RADIUS, cv::Scalar(0, 255, 0), -1);

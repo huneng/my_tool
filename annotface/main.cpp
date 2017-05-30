@@ -43,7 +43,6 @@ void annot_image(cv::Mat &img, Shape &shape){
     while(1){
         img.copyTo(simg.img);
 
-
         for(int p = 0; p < ptsSize; p++){
             cv::circle(simg.img, shape[p], 2, cv::Scalar(0, 0, 255), -1);
             char str[4];
@@ -101,7 +100,7 @@ int main(int argc, char **argv){
 
         analysis_file_path(imgPath.c_str(), rootDir, fileName, ext);
 
-        printf("%s\n", fileName);
+        printf("%d %s\n", size - i, fileName);
 
         sprintf(filePath, "%s/%s.pts", rootDir, fileName);
 
