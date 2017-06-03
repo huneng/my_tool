@@ -4,7 +4,7 @@
 
 
 #define WIN_SIZE 500
-#define POINT_RADIUS 1
+#define POINT_RADIUS 2
 
 int main(int argc, char **argv)
 {
