@@ -39,17 +39,28 @@ int main(int argc, char **argv)
         int ptsSize = read_pts_file(filePath, shape);
         if(ptsSize == 0) continue;
 
-        normalize_sample(img, patch, WIN_SIZE, 1.2, shape);
-//*
+#if 0
+        for(int p = 0; p < ptsSize; p++){
+            cv::circle(img, shape[p], POINT_RADIUS, cv::Scalar(0, 255, 0), -1);
+            char str[4];
+            sprintf(str, "%d", p);
+            cv::putText(img, str, cv::Point(shape[p].x + 5, shape[p].y), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 255));
+        }
+        sprintf(filePath, "%s/%s.jpg", argv[2], fileName);
+        cv::imwrite(filePath, img);
+
+#else
+        normalize_sample(img, patch, WIN_SIZE, 1.5, shape);
         for(int p = 0; p < ptsSize; p++){
             cv::circle(patch, shape[p], POINT_RADIUS, cv::Scalar(0, 255, 0), -1);
             char str[4];
             sprintf(str, "%d", p);
-            //cv::putText(patch, str, cv::Point(shape[p].x + 5, shape[p].y), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(255, 0, 0));
+            //cv::putText(patch, str, cv::Point(shape[p].x + 5, shape[p].y), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 255));
         }
-// */
+
         sprintf(filePath, "%s/%s.jpg", argv[2], fileName);
         cv::imwrite(filePath, patch);
+#endif
     }
 
     return 0;
