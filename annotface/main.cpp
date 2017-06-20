@@ -2,7 +2,7 @@
 #include "face_tool.h"
 
 
-#define WIN_SIZE 800
+#define WIN_SIZE 600
 
 typedef struct{
     char winName[30];
@@ -92,7 +92,6 @@ int main(int argc, char **argv){
 
     size = imgList.size();
 
-    FILE *fout = fopen("not_list.txt", "a");
     for(int i = 0; i < size; i++){
         std::string imgPath = imgList[i];
 
@@ -106,7 +105,10 @@ int main(int argc, char **argv){
 
         Shape shape;
 
-        read_pts_file(filePath, shape);
+        if(read_pts_file(filePath, shape) == 0){
+            printf("Can't read pts file %s\n", filePath);
+            continue;
+        }
 
         int ptsSize = shape.size();
 
@@ -135,9 +137,17 @@ int main(int argc, char **argv){
         rect.height = faceSize;
 
         if(rect.x < 0 || rect.y < 0 || rect.x + rect.width > img.cols || rect.y + rect.height > img.rows){
-            fprintf(fout, "%s\n", imgPath.c_str());
-            fflush(fout);
-            continue;
+            int border = faceSize * 0.1f;
+            printf("make border : %d\n", border);
+            cv::copyMakeBorder(img, img, border, border, border, border, cv::BORDER_CONSTANT);
+
+            rect.x += border;
+            rect.y += border;
+
+            for(int p = 0; p < ptsSize; p++){
+                shape[p].x += border;
+                shape[p].y += border;
+            }
         }
 
         cv::Mat sImg(img, rect);
@@ -163,7 +173,6 @@ int main(int argc, char **argv){
         write_pts_file(filePath, shape);
     }
 
-    fclose(fout);
 
     return 0;
 }

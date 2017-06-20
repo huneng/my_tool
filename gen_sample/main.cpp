@@ -3,10 +3,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#define TRAINS_FORM_SIZE 10000
-
 typedef std::vector<cv::Point2f> Shape;
-#define PTS_SIZE 25
+
+#define MAX_PTS_SIZE 200
 
 int read_pts_file(const char *filePath, Shape &shapes)
 {
@@ -38,26 +37,26 @@ int read_pts_file(const char *filePath, Shape &shapes)
 }
 
 
-int write_pts_file(const char *filePath, Shape &shapes)
+int write_pts_file(const char *filePath, Shape &shape)
 {
     FILE *fout = fopen(filePath, "w");
 
     char line[256];
-    cv::Point2f shape;
+    int ptsSize;
 
     if(fout == NULL){
         printf("Can't open file %s\n", filePath);
         return 1;
     }
 
+    ptsSize = shape.size();
     fprintf(fout, "version: 1\n");
-    fprintf(fout, "n_points:  %d\n", PTS_SIZE);
+    fprintf(fout, "n_points:  %d\n", ptsSize);
     fprintf(fout, "{\n");
 
-    int size = shapes.size();
 
-    for(int i = 0; i < size; i++){
-        fprintf(fout, "%f %f\n", shapes[i].x, shapes[i].y);
+    for(int i = 0; i < ptsSize; i++){
+        fprintf(fout, "%f %f\n", shape[i].x, shape[i].y);
     }
 
     fprintf(fout, "}");
@@ -178,16 +177,19 @@ void transform_image(cv::Mat &img);
 #define WINH 480
 
 int main(int argc, char **argv){
-    if(argc < 3){
-        printf("Usage: %s [image list] [out dir]\n", argv[0]);
+    if(argc < 4){
+        printf("Usage: %s  [image list] [times] [out dir]\n", argv[0]);
         return 1;
     }
 
     std::vector<std::string> imgList;
     int size;
+    int TRANSFORM_SIZE = 1000;
 
     read_file_list(argv[1], imgList);
     size = imgList.size();
+
+    TRANSFORM_SIZE = atoi(argv[2]);
 
     GLFWwindow *window = NULL;
 
@@ -245,6 +247,7 @@ int main(int argc, char **argv){
         char rootDir[128], fileName[128], ext[30], filePath[256], prefix[256];
         const char *imgPath = imgList[i].c_str();
         cv::Rect rect;
+        int ptsSize;
 
         img = cv::imread(imgPath, 1);
         if(img.empty())
@@ -253,12 +256,16 @@ int main(int argc, char **argv){
         analysis_file_path(imgPath, rootDir, fileName, ext);
         sprintf(filePath, "%s/%s.pts", rootDir, fileName);
 
-        if(read_pts_file(filePath, shape) == 0)
+        ptsSize = read_pts_file(filePath, shape);
+
+        if(ptsSize == 0){
+            printf("Read file %s error\n", filePath);
             break;
+        }
 
         cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
 
-        sprintf(filePath, "%s/%s", argv[2], fileName);
+        sprintf(filePath, "%s/%s", argv[3], fileName);
 
         get_face_rect(shape, rect, 3);
 
@@ -278,14 +285,14 @@ int main(int argc, char **argv){
         float scale = (float(WINW)) / patch.cols;
 
         cv::resize(patch, patch, cv::Size(WINW, WINH));
-        for(int p = 0; p < PTS_SIZE; p++){
+        for(int p = 0; p < ptsSize; p++){
             shape[p] *= scale;
         }
 
-        sprintf(prefix, "%s/%s", argv[2], fileName);
+        sprintf(prefix, "%s/%s", argv[3], fileName);
 
         {
-            glm::vec4 srcPts[PTS_SIZE];
+            glm::vec4 srcPts[MAX_PTS_SIZE];
             cv::RNG rng(cv::getTickCount());
             char outPath[256];
             float std = 0.5;
@@ -296,12 +303,12 @@ int main(int argc, char **argv){
             w = WINW >> 1;
             h = WINH >> 1;
 
-            for(int p = 0; p < PTS_SIZE; p++)
+            for(int p = 0; p < ptsSize; p++)
                 srcPts[p] = glm::vec4((shape[p].x - cx) / w, (cy - shape[p].y) / h, 0, 1.0);
 
             texID = create_texture_using_image(patch.data, patch.cols, patch.rows);
 
-            for(int frame = 0; frame < TRAINS_FORM_SIZE; frame ++){
+            for(int frame = 0; frame < TRANSFORM_SIZE; frame ++){
                 float ex = rng.uniform(-HU_PI / 9, HU_PI / 9);
                 float ey = rng.uniform(-HU_PI / 9, HU_PI / 9);
                 float ez = rng.uniform(-HU_PI / 9, HU_PI / 9);
@@ -336,7 +343,7 @@ int main(int argc, char **argv){
 
                 glReadPixels(viewPort[0], viewPort[1], viewPort[2], viewPort[3], GL_BGR, GL_UNSIGNED_BYTE, imgData);
 
-                for(int p = 0; p < PTS_SIZE; p++){
+                for(int p = 0; p < ptsSize; p++){
                     glm::vec4 vec = pmat * vmat * mmat * srcPts[p];
                     shape[p].x = vec[0] * w + cx;
                     shape[p].y = cy - vec[1] * h;
