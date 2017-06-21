@@ -11,10 +11,10 @@
 
 
 static void vertical_mirror(Shape &shape, int width){
-    int ptsSize = shape.size();
+    int ptsSize = shape.ptsSize;
 
     for(int i = 0; i < ptsSize; i++)
-        shape[i].x = width - 1 - shape[i].x;
+        shape.pts[i].x = width - 1 - shape.pts[i].x;
 
     if(ptsSize == 68){
         int idxs1[29] = {  0,  1,  2,  3,  4,  5,  6,  7,
@@ -34,7 +34,7 @@ static void vertical_mirror(Shape &shape, int width){
             int id1 = idxs1[i];
             int id2 = idxs2[i];
 
-            HU_SWAP(shape[id1], shape[id2], cv::Point2f);
+            HU_SWAP(shape.pts[id1], shape.pts[id2], HPoint2f);
         }
 
     }
@@ -55,7 +55,7 @@ static void vertical_mirror(Shape &shape, int width){
             int id1 = idxs1[i];
             int id2 = idxs2[i];
 
-            HU_SWAP(shape[id1], shape[id2], cv::Point2f);
+            HU_SWAP(shape.pts[id1], shape.pts[id2], HPoint2f);
         }
     }
     else if(ptsSize == 101){
@@ -78,7 +78,7 @@ static void vertical_mirror(Shape &shape, int width){
             int id1 = idxs1[i];
             int id2 = idxs2[i];
 
-            HU_SWAP(shape[id1], shape[id2], cv::Point2f);
+            HU_SWAP(shape.pts[id1], shape.pts[id2], HPoint2f);
         }
     }
     else{
@@ -146,7 +146,9 @@ void affine_sample_color(uint8_t *img, int width, int height, int stride, Shape 
     int *xtable = new int[(dstw << 1) + (dsth << 1)]; assert(xtable != NULL);
     int *ytable = xtable + (dstw << 1);
 
-    cv::Point2f center(width >> 1, height >> 1);
+    HPoint2f center;
+    center.x = width >> 1;
+    center.y = height >> 1;
 
     int fcx = center.x * FIX_ONE;
     int fcy = center.y * FIX_ONE;

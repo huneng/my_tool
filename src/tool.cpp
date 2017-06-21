@@ -160,18 +160,3 @@ void mirror_image(uint8_t *img, int width, int height, int stride){
 }
 
 
-cv::Point2f calculate_central(std::vector<cv::Point2f> &shape){
-    int ptsSize = shape.size();
-
-    double cx = 0;
-    double cy = 0;
-
-    for(int i = 0; i < ptsSize; i++){
-        cx += shape[i].x;
-        cy += shape[i].y;
-    }
-
-    return cv::Point2f(cx / ptsSize, cy / ptsSize);
-}
-
-

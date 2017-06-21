@@ -18,6 +18,4 @@ void noise_image(uint8_t *img, int width, int height, int stride);
 void inverse_color(uint8_t *img, int width, int height, int stride);
 void mirror_image(uint8_t *img, int width, int height, int stride);
 
-cv::Point2f calculate_central(std::vector<cv::Point2f> &shape);
-
 #endif

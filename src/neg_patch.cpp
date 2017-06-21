@@ -25,10 +25,10 @@ int main(int argc, char **argv)
     {
         printf("%6.2f%%\r", 100.0f * i / size);fflush(stdout);
 
-        std::vector<cv::Point2f> shape;
         const char *imgPath = imgList[i].c_str();
         cv::Mat img = cv::imread(imgPath);
         cv::Mat patch;
+        Shape shape;
 
         analysis_file_path(imgPath, rootDir, fileName, ext);
 
@@ -45,16 +45,16 @@ int main(int argc, char **argv)
         float cy = 0;
 
         for(int p = 0; p < ptsSize; p++){
-            cx += shape[p].x;
-            cy += shape[p].y;
+            cx += shape.pts[p].x;
+            cy += shape.pts[p].y;
         }
 
         cx /= ptsSize;
         cy /= ptsSize;
 
         for(int p = 0; p < ptsSize; p++){
-            shape[p].x = (shape[p].x - cx) * scale + cx;
-            shape[p].y = (shape[p].y - cy) * scale + cy;
+            shape.pts[p].x = (shape.pts[p].x - cx) * scale + cx;
+            shape.pts[p].y = (shape.pts[p].y - cy) * scale + cy;
         }
 
         normalize_sample(img, patch, WIN_SIZE, 1.5, shape);

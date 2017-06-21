@@ -1,8 +1,8 @@
-#include "face_tool.h"
 #include "tool.h"
+#include "face_tool.h"
 
 
-#define WIN_SIZE 200
+#define WIN_SIZE 128
 
 int main(int argc, char **argv){
     if(argc < 3){
@@ -20,7 +20,7 @@ int main(int argc, char **argv){
     for(int i = 0; i < size; i++){
         cv::Mat patch;
         cv::Mat img = cv::imread(imgList[i], 1);
-        std::vector<cv::Point2f> shape;
+        Shape shape;
 
         if(img.empty()){
             printf("Can't open image %s\n", imgList[i].c_str());
@@ -33,9 +33,9 @@ int main(int argc, char **argv){
 
         read_pts_file(filePath, shape);
 
-        normalize_sample(img, patch, WIN_SIZE << 1, 2.0, shape);
+        normalize_sample(img, patch, WIN_SIZE * 3, 3.0, shape);
 
-        write_sample(patch, shape, argv[2], fileName);
+        save_sample(patch, shape, argv[2], fileName);
 
         printf("%.2f%%\r", 100.0 * (i+1)/ size);
         fflush(stdout);
