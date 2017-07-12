@@ -2,6 +2,56 @@
 #include "tool.h"
 
 
+void extract_area_from_image(cv::Mat &img, cv::Mat &patch, cv::Rect &rect){
+    int x0 = rect.x;
+    int y0 = rect.y;
+
+    int x1 = x0 + rect.width - 1;
+    int y1 = y0 + rect.height - 1;
+
+    int faceSize = HU_MAX(rect.width, rect.height);
+
+    int w, h;
+
+    int bl, bt, br, bb;
+
+    int width = img.cols;
+    int height = img.rows;
+
+    patch = cv::Mat(rect.height, rect.width, img.type(), cv::Scalar::all(0));
+
+    bl = 0, bt = 0, br = 0, bb = 0;
+
+    if(x0 < 0) {
+        bl = -x0;
+        x0 = 0;
+    }
+
+    if(y0 < 0){
+        bt = -y0;
+        y0 = 0;
+    }
+
+    if(x1 > width - 1){
+        br = x1 - width + 1;
+        x1 = width - 1;
+    }
+
+    if(y1 > height - 1){
+        bb = y1 - height + 1;
+        y1 = height - 1;
+    }
+
+    w = faceSize - bl - br;
+    h = faceSize - bt - bb;
+
+    patch(cv::Rect(bl, bt, w, h)) += img(cv::Rect(x0, y0, w, h));
+
+    rect.x = x0 - bl;
+    rect.y = y0 - bt;
+}
+
+
 void normalize_sample(cv::Mat &src, cv::Mat &patch, int winSize, float factor, Shape &shape){
     HRect rect;
     int width  = src.cols;

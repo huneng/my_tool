@@ -23,4 +23,5 @@ void load_sample(const char *imgPath, cv::Mat &img, Shape &shape);
 void show_shape(Shape &shape, const char *winName);
 void show_shape(cv::Mat &img, Shape &shape, const char *winName);
 
+void extract_area_from_image(cv::Mat &img, cv::Mat &patch, cv::Rect &rect);
 #endif

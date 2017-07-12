@@ -197,3 +197,79 @@ void affine_shape(Shape &shapeSrc, HPoint2f cen1, Shape &shapeRes, HPoint2f cen2
     }
 }
 
+
+void calculate_mean_shape_global(Shape *shapes, int size, int ptsSize, int SHAPE_SIZE, float factor, Shape &meanShape)
+{
+    double cxs[MAX_SHAPE_POINTS], cys[MAX_SHAPE_POINTS];
+
+    float minx, miny, maxx, maxy;
+    float cx, cy, w, h, faceSize, scale;
+
+
+    memset(cxs, 0, sizeof(double) * MAX_SHAPE_POINTS);
+    memset(cys, 0, sizeof(double) * MAX_SHAPE_POINTS);
+
+    for(int i = 0; i < size; i++){
+        Shape &shape = shapes[i];
+
+        minx = FLT_MAX; maxx = -FLT_MAX;
+        miny = FLT_MAX; maxy = -FLT_MAX;
+
+        for(int j = 0; j < ptsSize; j++){
+            float x = shape.pts[j].x;
+            float y = shape.pts[j].y;
+
+            minx = HU_MIN(x, minx);
+            maxx = HU_MAX(x, maxx);
+            miny = HU_MIN(y, miny);
+            maxy = HU_MAX(y, maxy);
+        }
+
+        w = maxx - minx + 1;
+        h = maxy - miny + 1;
+
+        cx = (maxx + minx) / 2;
+        cy = (maxy + miny) / 2;
+
+        faceSize = HU_MAX(w, h);
+
+        scale = SHAPE_SIZE / faceSize;
+
+        for(int j = 0; j < ptsSize; j++){
+            cxs[j] += (shape.pts[j].x - cx) * scale + SHAPE_SIZE / 2;
+            cys[j] += (shape.pts[j].y - cy) * scale + SHAPE_SIZE / 2;
+        }
+    }
+
+    minx =  FLT_MAX, miny =  FLT_MAX;
+    maxx = -FLT_MAX, maxy = -FLT_MAX;
+
+    meanShape.ptsSize = ptsSize;
+
+    for(int j = 0; j < ptsSize; j++){
+        meanShape.pts[j].x = cxs[j] / size;
+        meanShape.pts[j].y = cys[j] / size;
+
+        minx = HU_MIN(minx, meanShape.pts[j].x);
+        maxx = HU_MAX(maxx, meanShape.pts[j].x);
+
+        miny = HU_MIN(miny, meanShape.pts[j].y);
+        maxy = HU_MAX(maxy, meanShape.pts[j].y);
+    }
+
+    w = maxx - minx + 1;
+    h = maxy - miny + 1;
+
+    cx = (maxx + minx) * 0.5f;
+    cy = (maxy + miny) * 0.5f;
+
+    faceSize = HU_MAX(w, h) * factor;
+
+    scale = SHAPE_SIZE / faceSize;
+
+    for(int j = 0; j < ptsSize; j++){
+        meanShape.pts[j].x = (meanShape.pts[j].x - cx) * scale + (SHAPE_SIZE >> 1);
+        meanShape.pts[j].y = (meanShape.pts[j].y - cy) * scale + (SHAPE_SIZE >> 1);
+    }
+}
+

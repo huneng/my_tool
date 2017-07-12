@@ -3,8 +3,8 @@
 #include <stdlib.h>
 
 
-#define WIN_SIZE 96
-#define POINT_RADIUS 1
+#define WIN_SIZE 200
+#define POINT_RADIUS 2
 
 int main(int argc, char **argv)
 {
@@ -50,13 +50,15 @@ int main(int argc, char **argv)
         cv::imwrite(filePath, img);
 
 #else
-        normalize_sample(img, patch, WIN_SIZE, 1.2, shape);
+        normalize_sample(img, patch, WIN_SIZE, 1.1, shape);
+        /*
         for(int p = 0; p < ptsSize; p++){
-            //cv::circle(patch, cv::Point2f(shape.pts[p].x, shape.pts[p].y), POINT_RADIUS, cv::Scalar(0, 255, 0), -1);
+            cv::circle(patch, cv::Point2f(shape.pts[p].x, shape.pts[p].y), POINT_RADIUS, cv::Scalar(0, 255, 0), -1);
             char str[4];
             sprintf(str, "%d", p);
-            //cv::putText(patch, str, cv::Point(shape[p].x + 5, shape[p].y), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 255));
+            cv::putText(patch, str, cv::Point(shape.pts[p].x + 5, shape.pts[p].y), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 255));
         }
+        // */
 
         sprintf(filePath, "%s/%s.jpg", argv[2], fileName);
         cv::imwrite(filePath, patch);

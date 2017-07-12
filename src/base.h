@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <float.h>
-
+#include <memory.h>
 
 typedef struct {
     float x, y;
@@ -25,7 +25,7 @@ typedef struct {
 #define MAX_SHAPE_POINTS 101
 
 typedef struct {
-    HPoint2f pts[101];
+    HPoint2f pts[MAX_SHAPE_POINTS];
     int ptsSize;
 } Shape;
 
@@ -48,5 +48,7 @@ int read_pts_file(const char *filePath, Shape &shape);
 int write_pts_file(const char *filePath, Shape &shape);
 
 void affine_shape(Shape &shapeSrc, HPoint2f cen1, Shape &shapeRes, HPoint2f cen2, float scale, float angle);
+
+void calculate_mean_shape_global(Shape *shapes, int size, int ptsSize, int SHAPE_SIZE, float factor, Shape &meanShape);
 
 #endif
