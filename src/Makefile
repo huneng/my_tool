@@ -3,7 +3,7 @@ DEPS=-I/usr/local/include -I/usr/local/include/opencv -lopencv_core -lopencv_img
 FLAGS=-O3 -fopenmp
 
 DST= neg_patch get_face norm_face extract_frame merge_show rotate_image rotate_image_color \
-	 gen_time hashMatch annot_rect selectImage transform annot facetest extract_face
+	 gen_time hashMatch annot_rect selectImage transform annot extract_face
 
 all:${DST}
 	mkdir -p ../bin

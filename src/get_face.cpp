@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 
-#define WIN_SIZE 200
+#define WIN_SIZE 300
 #define POINT_RADIUS 2
 
 int main(int argc, char **argv)
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 
 #else
         normalize_sample(img, patch, WIN_SIZE, 1.1, shape);
-        /*
+        //*
         for(int p = 0; p < ptsSize; p++){
             cv::circle(patch, cv::Point2f(shape.pts[p].x, shape.pts[p].y), POINT_RADIUS, cv::Scalar(0, 255, 0), -1);
             char str[4];

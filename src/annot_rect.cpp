@@ -51,7 +51,7 @@ int rect_images(cv::Mat &img, std::vector<cv::Rect> &rects){
 
     cv::setMouseCallback(WIN_NAME, on_mouse, &params);
 
-    char key = 'q';
+    char key = ' ';
 
     rects.clear();
 
@@ -69,7 +69,7 @@ int rect_images(cv::Mat &img, std::vector<cv::Rect> &rects){
             cv::rectangle(params.img, params.rect, cv::Scalar(0, 255, 0), 2);
             rects.push_back(params.rect);
         }
-        else if(key == 'q' ) {
+        else if(key == ' ' ) {
             break;
         }
     }
