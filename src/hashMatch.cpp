@@ -9,6 +9,10 @@
 double dctcoef1[N][N];
 double dctcoef2[N][N];
 
+
+int hamdist(uint32_t *a, uint32_t *b, int len);
+void print_bin(uint32_t code);
+
 void init_coef()
 {
     double coef[N];
@@ -60,15 +64,15 @@ void gen_hash_code(cv::Mat& img, uint32_t* hashCode)
         cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
 
     else if(img.type() == CV_8UC1)
-        gray = img.clone();
+        img.copyTo(gray);
 
     cv::resize(gray, smallImg, cv::Size(N, N));
 
     data = new double[N * N];
 
-    for(y = 0; y < smallImg.rows; y++)
-        for(x = 0; x < smallImg.cols; x++)
-            data[y * smallImg.cols + x] = smallImg.at<uchar>(y, x);
+    for(y = 0; y < N; y++)
+        for(x = 0; x < N; x++)
+            data[y * N + x] = smallImg.at<uchar>(y, x);
 
 
     dctres = new double[N2 * N2];
@@ -113,117 +117,93 @@ void gen_hash_code(cv::Mat& img, uint32_t* hashCode)
     delete [] data;
 }
 
-int hamdist(uint32_t *a, uint32_t *b, int len);
-void print_bin(uint32_t code);
 
+typedef struct {
+    int id;
+    uint16_t key;
+    uint64_t code;
+    char path[256];
+} Pair;
 
+#define LT(a, b) ((a).key < (b).key ? 1 : ((a).key == (b).key ? ((a).id < (b).id) : 0) )
 
-int main_single_test(int argc, char **argv);
-int main_multi_test(int argc, char ** argv);
+HU_IMPLEMENT_QSORT(sort_arr_pairs, Pair, LT);
 
-int main(int argc, char **argv)
-{
-#if 1
-    //input arguments is image list file and output file
-    main_multi_test(argc, argv);
-
-#else
-    //input arguments is two image used to matching
-    main_single_test(argc, argv);
-
-#endif
-    return 0;
-}
-
-
-int main_multi_test(int argc, char ** argv)
-{
-    if(argc < 3)
-    {
-        printf("Usage: %s[image list] [res file]\n", argv[0]);
+int main(int argc, char **argv){
+    if(argc < 3){
+        printf("Usage: %s [image list] [out file]\n", argv[0]);
         return 1;
     }
 
-    std::vector<std::string> imageList;
+    std::vector<std::string> imgList;
+    int size;
 
-    read_file_list(argv[1], imageList);
+    FILE *fout;
 
-    FILE *fp = fopen(argv[2], "w");
-    if(fp == NULL)
-    {
+    read_file_list(argv[1], imgList);
+
+    size = imgList.size();
+
+    if(size == 0) return 0;
+
+    fout = fopen(argv[2], "w");
+
+    if(fout == NULL){
         printf("Can't open file %s\n", argv[2]);
         return 1;
     }
 
-    int size = imageList.size();
-
-    uint32_t *code = new uint32_t[2 * size];
-
     init_coef();
 
-    printf("Generate code\n");
+    Pair *pairs = new Pair[size];
 
-    for(int i = 0; i < size; i++)
-    {
-        cv::Mat img = cv::imread(imageList[i], 0);
-        gen_hash_code(img, code + (i << 1));
+    memset(pairs, 0, sizeof(Pair) * size);
 
-        printf("%d\r", i);
-        fflush(stdout);
-    }
+    for(int i = 0; i < size; i++){
+        const char *imgPath = imgList[i].c_str();
 
-    printf("Matching\n");
+        cv::Mat img = cv::imread(imgPath, 0);
+        Pair *pair = pairs + i;
 
-    uint32_t* pCode1 = code;
-
-    for(int i = 0; i < size; i++, pCode1 += 2)
-    {
-        uint32_t* pCode2 = pCode1 + 2;
-
-        for(int j = i+1; j < size; j++, pCode2 += 2)
-        {
-            int dist = hamdist(pCode1, pCode2, 2);
-
-            if(dist == 0)
-                fprintf(fp, "%s %s %d\n", imageList[i].c_str(), imageList[j].c_str(), dist);
+        if(img.empty()){
+            printf("Can't open image %s\n", imgPath);
+            return 1;
         }
-        printf("%d\r", i);
-        fflush(stdout);
+
+        pair->id = i;
+        strcpy(pair->path, imgPath);
+
+        gen_hash_code(img, (uint32_t*)(&pair->code));
+        pair->key = uint16_t(pair->code & 0xffff);
+
+        printf("%d\r", i), fflush(stdout);
     }
 
-    fclose(fp);
+    sort_arr_pairs(pairs, size);
 
-    return 0;
-}
+    uint16_t startKey = pairs[0].key;
+    int startId = 0;
 
+    for(int i = 1; i < size; i++){
+        if(startKey != pairs[i].key){
+            startKey = pairs[i].key;
+            startId = i;
+            continue;
+        }
 
-int main_single_test(int argc, char **argv)
-{
-    if(argc < 3)
-    {
-        printf("Usage: %s [image 1] [image 2]\n", argv[0]);
-        return 1;
+        for(int j = startId; j < i; j++){
+            int dist = hamdist((uint32_t*)(&pairs[j].code), (uint32_t*)(&pairs[i].code), 2);
+            if(dist > 0) continue;
+
+            fprintf(fout, "%s %s\n", pairs[j].path, pairs[i].path);
+            fflush(fout);
+        }
+
+        printf("%d\r", i), fflush(stdout);
     }
 
-    cv::Mat img = cv::imread(argv[1], 0);
-    cv::Mat img2 = cv::imread(argv[2], 0);
+    fclose(fout);
 
-    if(img.empty() || img2.empty())
-    {
-        printf("Can't open image error\n");
-        return 1;
-    }
-
-    uint32_t code1[2], code2[2];
-
-    init_coef();
-
-    gen_hash_code(img, code1);
-    gen_hash_code(img2, code2);
-
-    int dist = hamdist(code1, code2, 2);
-
-    printf("%s %s dist = %d\n", argv[1], argv[2], dist);
 
     return 0;
 }

@@ -3,7 +3,7 @@
 
 
 #define WIN_SIZE 100
-#define FACTOR 1.1f
+#define FACTOR 1.2f
 
 int main(int argc, char **argv)
 {
