@@ -106,7 +106,9 @@ void normalize_sample(cv::Mat &src, cv::Mat &patch, int winSize, float factor, S
 
     patch(rect1) = patch(rect1) + src(rect2);
 
-    scale = float(winSize) / faceSize;
+    scale = 1;
+    if(winSize != 0)
+        scale = float(winSize) / faceSize;
     resize(patch, patch, cv::Size(scale * patch.cols, scale * patch.rows));
 
     ptsSize = shape.ptsSize;
