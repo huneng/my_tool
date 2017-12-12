@@ -156,6 +156,7 @@ int main(int argc, char **argv){
     init_coef();
 
     Pair *pairs = new Pair[size];
+    int count = 0;
 
     memset(pairs, 0, sizeof(Pair) * size);
 
@@ -163,18 +164,20 @@ int main(int argc, char **argv){
         const char *imgPath = imgList[i].c_str();
 
         cv::Mat img = cv::imread(imgPath, 0);
-        Pair *pair = pairs + i;
+        Pair *pair = pairs + count;
 
         if(img.empty()){
             printf("Can't open image %s\n", imgPath);
-            return 1;
+            continue;
         }
 
-        pair->id = i;
+        pair->id = count;
         strcpy(pair->path, imgPath);
 
         gen_hash_code(img, (uint32_t*)(&pair->code));
         pair->key = uint16_t(pair->code & 0xffff);
+
+        count++;
 
         printf("%d\r", i), fflush(stdout);
     }
@@ -184,7 +187,7 @@ int main(int argc, char **argv){
     uint16_t startKey = pairs[0].key;
     int startId = 0;
 
-    for(int i = 1; i < size; i++){
+    for(int i = 1; i < count; i++){
         if(startKey != pairs[i].key){
             startKey = pairs[i].key;
             startId = i;

@@ -3,8 +3,9 @@
 #include <stdlib.h>
 
 
-#define WIN_SIZE 600
+#define WIN_SIZE 500
 #define POINT_RADIUS 2
+#define FONT_SCALE 0.5
 
 int main(int argc, char **argv)
 {
@@ -41,10 +42,10 @@ int main(int argc, char **argv)
 
 #if 0
         for(int p = 0; p < ptsSize; p++){
-            cv::circle(img, shape[p], POINT_RADIUS, cv::Scalar(0, 255, 0), -1);
+            cv::circle(img, cv::Point2f(shape.pts[p].x, shape.pts[p].y), POINT_RADIUS, cv::Scalar(0, 255, 0), -1);
             char str[4];
             sprintf(str, "%d", p);
-            cv::putText(img, str, cv::Point(shape[p].x + 5, shape[p].y), cv::FONT_HERSHEY_PLAIN, 0.5, cv::Scalar(0, 0, 255));
+            cv::putText(img, str, cv::Point2f(shape.pts[p].x, shape.pts[p].y), cv::FONT_HERSHEY_PLAIN, FONT_SCALE, cv::Scalar(0, 0, 255), 3);
         }
         sprintf(filePath, "%s/%s.jpg", argv[2], fileName);
         cv::imwrite(filePath, img);
