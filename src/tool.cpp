@@ -159,4 +159,73 @@ void mirror_image(uint8_t *img, int width, int height, int stride){
     }
 }
 
+#define PADDING_CONST 0
+#define PADDING_REPLICATE 1
+#define PADDING_SYMMETRIC 2
+#define PADDING_CIRCLE 3
 
+
+void padding(uint8_t *src, int srcW, int srcH, int chn, uint8_t *dst,
+        int ptop, int pbot, int plef, int prig, int type, uint8_t val){
+    int dstW = srcW + plef + prig;
+    int dstH = srcH + ptop + pbot;
+
+    int wid1 = srcW + plef;
+    int hei1 = srcH + ptop;
+
+    int x, y, z;
+
+    assert(ptop >= 0);
+    assert(pbot >= 0);
+    assert(plef >= 0);
+    assert(prig >= 0);
+
+#define MPAD(YT, YM, YB, XL, XM, XR) \
+    for(y = 0;    y < ptop; y++) for(x = 0;    x < plef; x ++) dst[y * dstW + x] = src[(YT) * srcW + (XL)]; \
+    for(y = 0;    y < ptop; y++) for(x = plef; x < wid1; x ++) dst[y * dstW + x] = src[(YT) * srcW + (XM)]; \
+    for(y = 0;    y < ptop; y++) for(x = wid1; x < dstW; x ++) dst[y * dstW + x] = src[(YT) * srcW + (XR)]; \
+    for(y = ptop; y < hei1; y++) for(x = 0;    x < plef; x ++) dst[y * dstW + x] = src[(YM) * srcW + (XL)]; \
+    for(y = ptop; y < hei1; y++) memcpy(dst + y * dstW + plef, src + (y - ptop) * srcW, sizeof(uint8_t) * srcW); \
+    for(y = ptop; y < hei1; y++) for(x = wid1; x < dstW; x ++) dst[y * dstW + x] = src[(YM) * srcW + (XR)]; \
+    for(y = hei1; y < dstH; y++) for(x = 0;    x < plef; x ++) dst[y * dstW + x] = src[(YB) * srcW + (XL)]; \
+    for(y = hei1; y < dstH; y++) for(x = plef; x < wid1; x ++) dst[y * dstW + x] = src[(YB) * srcW + (XM)]; \
+    for(y = hei1; y < dstH; y++) for(x = wid1; x < dstW; x ++) dst[y * dstW + x] = src[(YB) * srcW + (XR)];
+
+    for(z = 0; z < chn; z++){
+
+        if(PADDING_CONST == type){
+            for(y = 0; y < ptop; y++)
+                for(x = 0; x < dstW; x++)
+                    dst[y * dstW + x] = val;
+
+            for(y = ptop; y < hei1; y++){
+                for(x = 0; x < plef; x++)
+                    dst[y * dstW + x] = val;
+
+                memcpy(dst + y * dstW + plef, src + (y - ptop) * srcW, sizeof(uint8_t) * srcW);
+
+                for(x = wid1; x < dstW; x++)
+                    dst[y * dstW + x] = val;
+            }
+
+            for(y = hei1; y < dstH; y++)
+                for(x = 0; x < dstW; x++)
+                    dst[y * dstW + x] = val;
+        }
+        else if(PADDING_REPLICATE == type){
+            MPAD( 0, y - ptop, srcH - 1, 0, x - plef, srcW - 1);
+        }
+
+        else if(PADDING_SYMMETRIC == type){
+            MPAD(ptop - y - 1, y - ptop, srcH + hei1 - 1 - y, plef - x - 1, x - plef, srcW + wid1 - 1 - x );
+        }
+        else if(PADDING_CIRCLE == type){
+            MPAD(y - ptop + srcH, y - ptop, y - ptop - srcH, x - plef + srcW, x - plef, x - plef - srcW);
+        }
+
+        src += srcH * srcW;
+        dst += dstH * dstW;
+    }
+
+#undef MPAD
+}

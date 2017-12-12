@@ -3,7 +3,7 @@
 
 
 #define WIN_SIZE 100
-#define FACTOR 1.2f
+#define FACTOR 1.1f
 
 int main(int argc, char **argv)
 {
@@ -17,6 +17,7 @@ int main(int argc, char **argv)
     int size = 0, ret;
     char filePath[128], rootDir[128], fileName[128], ext[30];
 
+    printf("WIN_SIZE = %d, FACTOR = %f\n", WIN_SIZE, FACTOR);
     ret = read_file_list(argv[1], imgList);
     if(ret != 0) return 1;
 
